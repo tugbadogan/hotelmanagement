@@ -1,0 +1,166 @@
+DELIMITER //
+CREATE PROCEDURE todays_service_count(IN today_date varchar(50))
+BEGIN
+SELECT count(*) as amount, "laundry" as type FROM laundry_service WHERE laundry_date=today_date UNION ALL SELECT count(*) as amount, "massage" as type FROM massage_service WHERE massage_date=today_date UNION ALL SELECT count(*) as amount, "roomservice" as type FROM get_roomservice WHERE roomservice_date=today_date UNION ALL SELECT count(*) as amount, "medicalservice" as type FROM get_medicalservice WHERE medicalservice_date=today_date UNION ALL SELECT count(*) as amount, "sport" as type FROM do_sport WHERE dosport_date=today_date
+UNION ALL SELECT count(*) as amount, "restaurant" as type FROM restaurant_booking WHERE book_date=today_date;
+END//
+
+DELIMITER //
+CREATE PROCEDURE get_available_rooms(IN o_room_type varchar(50), IN o_checkin_date varchar(50), IN o_checkout_date varchar(50))
+BEGIN
+SELECT * FROM `room` WHERE room_type=o_room_type AND NOT EXISTS (
+SELECT room_id FROM reservation WHERE reservation.room_id=room.room_id AND checkout_date >= o_checkin_date AND checkin_date <= o_checkout_date
+UNION ALL
+SELECT room_id FROM room_sales WHERE room_sales.room_id=room.room_id AND checkout_date >= o_checkin_date AND checkin_date <= o_checkout_date
+);
+END//
+
+DELIMITER //
+CREATE PROCEDURE get_customers(IN today_date varchar(50))
+BEGIN
+SELECT * FROM `room_sales` NATURAL JOIN `customer` WHERE checkout_date >= today_date AND checkin_date <= today_date;
+END//
+
+DELIMITER //
+CREATE PROCEDURE get_all_customers(IN id INT)
+BEGIN
+SELECT count(*) FROM customer;
+END//
+
+
+
+Triggers
+============
+DROP TRIGGER IF EXISTS `after_insert_sport_service`;
+DELIMITER //
+CREATE TRIGGER `after_insert_sport_service` AFTER INSERT ON `do_sport`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price + NEW.dosport_price WHERE room_sales.customer_id = NEW.customer_id AND room_sales.checkin_date <= NEW.dosport_date AND room_sales.checkout_date >= NEW.dosport_date;
+END
+//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `before_delete_sport_service`;
+DELIMITER //
+CREATE TRIGGER `before_delete_sport_service` BEFORE DELETE ON `do_sport`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price - OLD.dosport_price WHERE room_sales.customer_id = OLD.customer_id AND room_sales.checkin_date <= OLD.dosport_date AND room_sales.checkout_date >= OLD.dosport_date;
+END
+//
+DELIMITER ;
+
+
+
+DROP TRIGGER IF EXISTS `after_insert_medical_service`;
+DELIMITER //
+CREATE TRIGGER `after_insert_medical_service` AFTER INSERT ON `get_medicalservice`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price + NEW.medicalservice_price WHERE room_sales.customer_id = NEW.customer_id AND room_sales.checkin_date <= NEW.medicalservice_date AND room_sales.checkout_date >= NEW.medicalservice_date;
+END
+//
+DELIMITER ;
+
+DROP TRIGGER IF EXISTS `after_delete_medical_service`;
+DELIMITER //
+CREATE TRIGGER `after_delete_medical_service` BEFORE DELETE ON `get_medicalservice`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price - OLD.medicalservice_price WHERE room_sales.customer_id = OLD.customer_id AND room_sales.checkin_date <= OLD.medicalservice_date AND room_sales.checkout_date >= OLD.medicalservice_date;
+END
+//
+DELIMITER ;
+
+
+
+DROP TRIGGER IF EXISTS `after_insert_room_service`;
+DELIMITER //
+CREATE TRIGGER `after_insert_room_service` AFTER INSERT ON `get_roomservice`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price + NEW.roomservice_price WHERE room_sales.customer_id = NEW.customer_id AND room_sales.checkin_date <= NEW.roomservice_date AND room_sales.checkout_date >= NEW.roomservice_date;
+END
+//
+DELIMITER ;
+DROP TRIGGER IF EXISTS `before_delete_room_service`;
+DELIMITER //
+CREATE TRIGGER `before_delete_room_service` BEFORE DELETE ON `get_roomservice`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price - OLD.roomservice_price WHERE room_sales.customer_id = OLD.customer_id AND room_sales.checkin_date <= OLD.roomservice_date AND room_sales.checkout_date >= OLD.roomservice_date;
+END
+//
+DELIMITER ;
+
+
+DROP TRIGGER IF EXISTS `after_insert_laundry_service`;
+DELIMITER //
+CREATE TRIGGER `after_insert_laundry_service` AFTER INSERT ON `laundry_service`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price + NEW.laundry_price WHERE room_sales.customer_id = NEW.customer_id AND room_sales.checkin_date <= NEW.laundry_date AND room_sales.checkout_date >= NEW.laundry_date;
+END
+//
+DELIMITER ;
+DROP TRIGGER IF EXISTS `before_delete_laundry_service`;
+DELIMITER //
+CREATE TRIGGER `before_delete_laundry_service` BEFORE DELETE ON `laundry_service`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price - OLD.laundry_price WHERE room_sales.customer_id = OLD.customer_id AND room_sales.checkin_date <= OLD.laundry_date AND room_sales.checkout_date >= OLD.laundry_date;
+END
+//
+DELIMITER ;
+
+
+DROP TRIGGER IF EXISTS `after_insert_restaurant_service`;
+DELIMITER //
+CREATE TRIGGER `after_insert_restaurant_service` AFTER INSERT ON `restaurant_booking`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price + NEW.book_price WHERE room_sales.customer_id = NEW.customer_id AND room_sales.checkin_date <= NEW.book_date AND room_sales.checkout_date >= NEW.book_date;
+END
+//
+DELIMITER ;
+DROP TRIGGER IF EXISTS `before_delete_restaurant_service`;
+DELIMITER //
+CREATE TRIGGER `before_delete_restaurant_service` BEFORE DELETE ON `restaurant_booking`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price - OLD.book_price WHERE room_sales.customer_id = OLD.customer_id AND room_sales.checkin_date <= OLD.book_date AND room_sales.checkout_date >= OLD.book_date;
+END
+//
+DELIMITER ;
+
+
+DROP TRIGGER IF EXISTS `after_insert_massage_service`;
+DELIMITER //
+CREATE TRIGGER `after_insert_massage_service` AFTER INSERT ON `massage_service`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price + NEW.massage_price WHERE room_sales.customer_id = NEW.customer_id AND room_sales.checkin_date <= NEW.massage_date AND room_sales.checkout_date >= NEW.massage_date;
+END
+//
+DELIMITER ;
+DROP TRIGGER IF EXISTS `before_delete_massage_service`;
+DELIMITER //
+CREATE TRIGGER `before_delete_massage_service` BEFORE DELETE ON `massage_service`
+ FOR EACH ROW BEGIN
+    UPDATE room_sales SET room_sales.total_service_price = room_sales.total_service_price - OLD.massage_price WHERE room_sales.customer_id = OLD.customer_id AND room_sales.checkin_date <= OLD.massage_date AND room_sales.checkout_date >= OLD.massage_date;
+END
+//
+DELIMITER ;
+
+
+
+
+DROP TRIGGER IF EXISTS `after_insert_room`;
+DELIMITER //
+CREATE TRIGGER `after_insert_room` AFTER INSERT ON `room`
+ FOR EACH ROW BEGIN
+    UPDATE room_type SET room_type.room_quantity =room_type.room_quantity + 1 WHERE room_type.room_type = NEW.room_type;
+END
+//
+DELIMITER ;
+
+
+
+DROP TRIGGER IF EXISTS `before_delete_room`;
+DELIMITER //
+CREATE TRIGGER `before_delete_room` BEFORE DELETE ON `room`
+ FOR EACH ROW BEGIN
+    UPDATE room_type SET room_type.room_quantity =room_type.room_quantity - 1 WHERE room_type.room_type = OLD.room_type;
+END
+//
+DELIMITER ;
